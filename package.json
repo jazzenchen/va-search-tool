@@ -1,0 +1,33 @@
+{
+  "name": "@vibearound/search-tool",
+  "version": "0.1.0",
+  "description": "VibeAround host-side web search provider",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "va-search-tool": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/main.js stdio",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@tavily/core": "^0.7.6",
+    "exa-js": "^2.14.0",
+    "openai": "^6.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
