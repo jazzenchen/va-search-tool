@@ -1,0 +1,10 @@
+{
+  "id": "va-search-tool",
+  "name": "VibeAround Search Tool",
+  "version": "0.1.0",
+  "kind": "search",
+  "runtime": "node",
+  "entry": "dist/main.js",
+  "build": "npm run build",
+  "minHostVersion": "0.7.4"
+}
