@@ -30,6 +30,7 @@ export class BraveProvider implements SearchSourceProvider {
     }
 
     const response = await fetch(url, {
+      signal: context.signal,
       headers: {
         Accept: "application/json",
         "X-Subscription-Token": apiKey,

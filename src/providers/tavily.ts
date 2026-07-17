@@ -36,6 +36,7 @@ export class TavilyProvider implements SearchSourceProvider {
       includeRawContent: context.searchContextSize === "high",
       includeDomains: request.includeDomains,
       excludeDomains: request.excludeDomains,
+      timeout: Math.max(1, Math.ceil(context.timeoutMs / 1_000)),
     } as never);
 
     const results = ((response as { results?: TavilyResult[] }).results ?? [])

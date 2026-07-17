@@ -15,6 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/main.js stdio",
+    "test": "npm run build && node --test dist/*.test.js",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build"
   },

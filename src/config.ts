@@ -2,6 +2,9 @@ import type { SearchContextSize } from "./types.js";
 
 export const DEFAULT_MAX_RESULTS = 5;
 export const MAX_RESULTS_LIMIT = 20;
+export const DEFAULT_SEARCH_TIMEOUT_MS = 25_000;
+export const MIN_SEARCH_TIMEOUT_MS = 100;
+export const MAX_SEARCH_TIMEOUT_MS = 120_000;
 export const PROVIDER_ORDER = ["exa", "tavily", "grok", "brave"] as const;
 export type ProviderId = (typeof PROVIDER_ORDER)[number];
 
@@ -16,6 +19,7 @@ export interface SearchToolConfig {
   sources: Map<ProviderId, SourceConfig>;
   defaultProviders: ProviderId[];
   maxResults: number;
+  searchTimeoutMs: number;
   searchContextSize?: SearchContextSize;
   grokModel: string;
 }
@@ -37,9 +41,15 @@ export function loadConfigFromEnv(env = process.env): SearchToolConfig {
     sources,
     defaultProviders,
     maxResults: clampMaxResults(parsePositiveInt(env.VA_SEARCH_MAX_RESULTS)),
+    searchTimeoutMs: clampSearchTimeout(parsePositiveInt(env.VA_SEARCH_TIMEOUT_MS)),
     searchContextSize: parseSearchContextSize(env.VA_SEARCH_CONTEXT_SIZE),
     grokModel: clean(env.VA_SEARCH_GROK_MODEL ?? env.VA_SEARCH_XAI_MODEL) ?? "grok-4.3",
   };
+}
+
+export function clampSearchTimeout(value: number | undefined): number {
+  if (!value || !Number.isFinite(value)) return DEFAULT_SEARCH_TIMEOUT_MS;
+  return Math.min(MAX_SEARCH_TIMEOUT_MS, Math.max(MIN_SEARCH_TIMEOUT_MS, Math.floor(value)));
 }
 
 export function normalizeProviderId(value: string): ProviderId | undefined {
