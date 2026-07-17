@@ -2,6 +2,9 @@ import { createInterface } from "node:readline";
 
 import { SearchProvider } from "./search-provider.js";
 
+const MAX_STDIO_CONCURRENCY = 8;
+type SearchHandler = Pick<SearchProvider, "search">;
+
 interface RpcRequest {
   jsonrpc?: unknown;
   id?: unknown;
@@ -21,19 +24,42 @@ interface RpcResponse {
 
 export async function runStdio(provider = new SearchProvider()): Promise<void> {
   redirectConsoleToStderr();
+  await runRpcStream(provider, process.stdin, process.stdout);
+}
+
+export async function runRpcStream(
+  provider: SearchHandler,
+  input: NodeJS.ReadableStream,
+  output: NodeJS.WritableStream,
+  maxConcurrency = MAX_STDIO_CONCURRENCY,
+): Promise<void> {
+  if (!Number.isInteger(maxConcurrency) || maxConcurrency < 1) {
+    throw new Error("stdio concurrency must be a positive integer");
+  }
+
   const lines = createInterface({
-    input: process.stdin,
+    input,
     crlfDelay: Infinity,
   });
+  const pending = new Set<Promise<void>>();
 
   for await (const line of lines) {
     if (!line.trim()) continue;
-    const response = await handleRpcLine(provider, line);
-    process.stdout.write(`${JSON.stringify(response)}\n`);
+    const task = handleRpcLine(provider, line).then((response) => {
+      output.write(`${JSON.stringify(response)}\n`);
+    });
+    pending.add(task);
+    task.then(
+      () => pending.delete(task),
+      () => pending.delete(task),
+    );
+    if (pending.size >= maxConcurrency) await Promise.race(pending);
   }
+
+  await Promise.all(pending);
 }
 
-export async function handleRpc(provider: SearchProvider, request: RpcRequest): Promise<RpcResponse> {
+export async function handleRpc(provider: SearchHandler, request: RpcRequest): Promise<RpcResponse> {
   const id = request.id ?? null;
   if (request.method !== "web_search" && request.method !== "search") {
     return rpcError(id, -32601, `unknown method '${String(request.method)}'`);
@@ -47,7 +73,7 @@ export async function handleRpc(provider: SearchProvider, request: RpcRequest): 
   }
 }
 
-async function handleRpcLine(provider: SearchProvider, line: string): Promise<RpcResponse> {
+async function handleRpcLine(provider: SearchHandler, line: string): Promise<RpcResponse> {
   let request: RpcRequest;
   try {
     request = JSON.parse(line) as RpcRequest;
