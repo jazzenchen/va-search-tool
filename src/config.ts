@@ -83,10 +83,17 @@ function loadSourceConfig(id: ProviderId, env: NodeJS.ProcessEnv): SourceConfig 
 
 function splitProviderList(value: string | undefined): ProviderId[] {
   if (!value) return [];
-  return value
-    .split(",")
-    .map((item) => normalizeProviderId(item))
-    .filter((item): item is ProviderId => !!item);
+  const providers: ProviderId[] = [];
+  for (const item of value.split(",")) {
+    const rawProvider = item.trim();
+    if (!rawProvider) continue;
+    const provider = normalizeProviderId(rawProvider);
+    if (!provider) {
+      throw new Error(`unsupported search provider '${rawProvider}' in VA_SEARCH_SOURCES`);
+    }
+    if (!providers.includes(provider)) providers.push(provider);
+  }
+  return providers;
 }
 
 function parseSearchContextSize(value: string | undefined): SearchContextSize | undefined {
