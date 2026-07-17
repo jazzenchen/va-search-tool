@@ -61,6 +61,9 @@ export async function runRpcStream(
 
 export async function handleRpc(provider: SearchHandler, request: RpcRequest): Promise<RpcResponse> {
   const id = request.id ?? null;
+  if (request.method === "health") {
+    return { jsonrpc: "2.0", id, result: { status: "ok" } };
+  }
   if (request.method !== "web_search" && request.method !== "search") {
     return rpcError(id, -32601, `unknown method '${String(request.method)}'`);
   }
@@ -74,13 +77,16 @@ export async function handleRpc(provider: SearchHandler, request: RpcRequest): P
 }
 
 async function handleRpcLine(provider: SearchHandler, line: string): Promise<RpcResponse> {
-  let request: RpcRequest;
+  let request: unknown;
   try {
-    request = JSON.parse(line) as RpcRequest;
+    request = JSON.parse(line) as unknown;
   } catch (error) {
     return rpcError(null, -32700, `invalid JSON-RPC line: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return handleRpc(provider, request);
+  if (request === null || typeof request !== "object" || Array.isArray(request)) {
+    return rpcError(null, -32600, "invalid JSON-RPC request");
+  }
+  return handleRpc(provider, request as RpcRequest);
 }
 
 function rpcError(id: unknown, code: number, message: string): RpcResponse {
