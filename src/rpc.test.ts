@@ -12,6 +12,58 @@ import { runRpcStream } from "./rpc.js";
 import { SearchProvider } from "./search-provider.js";
 import type { WebSearchResponse } from "./types.js";
 
+test("stdio health is deterministic and invalid requests fail closed", async () => {
+  let searchCalls = 0;
+  const handler = {
+    async search(): Promise<WebSearchResponse> {
+      searchCalls += 1;
+      return response("exa", "unexpected");
+    },
+  };
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const lines: Array<{
+    id: unknown;
+    result?: unknown;
+    error?: { code: number; message: string };
+  }> = [];
+  output.on("data", (chunk) => {
+    for (const line of chunk.toString().trim().split("\n")) {
+      if (line) lines.push(JSON.parse(line));
+    }
+  });
+
+  const running = runRpcStream(handler, input, output);
+  input.end([
+    JSON.stringify({ jsonrpc: "2.0", id: "health", method: "health" }),
+    JSON.stringify({ jsonrpc: "2.0", id: "unknown", method: "ready" }),
+    "null",
+    "{not-json",
+  ].join("\n") + "\n");
+  await running;
+
+  assert.equal(lines.length, 4);
+  assert.deepEqual(lines.find((line) => line.id === "health"), {
+    jsonrpc: "2.0",
+    id: "health",
+    result: { status: "ok" },
+  });
+  assert.deepEqual(lines.find((line) => line.id === "unknown"), {
+    jsonrpc: "2.0",
+    id: "unknown",
+    error: { code: -32601, message: "unknown method 'ready'" },
+  });
+  assert.deepEqual(lines.find((line) => line.error?.code === -32600), {
+    jsonrpc: "2.0",
+    id: null,
+    error: { code: -32600, message: "invalid JSON-RPC request" },
+  });
+  const parseError = lines.find((line) => line.error?.code === -32700);
+  assert.equal(parseError?.id, null);
+  assert.match(parseError?.error?.message ?? "", /^invalid JSON-RPC line:/);
+  assert.equal(searchCalls, 0);
+});
+
 test("a hung stdio request does not block a later request", async () => {
   const provider = new SearchProvider(
     config(30),
