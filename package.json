@@ -15,12 +15,11 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/main.js stdio",
+    "test": "npm run build && node --test dist/*.test.js",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@tavily/core": "^0.7.6",
-    "exa-js": "^2.14.0",
     "openai": "^6.9.1"
   },
   "devDependencies": {

@@ -1,6 +1,5 @@
-import { Exa } from "exa-js";
-
 import {
+  compactWhitespace,
   resultFromParts,
   stringArrayField,
   stringField,
@@ -8,6 +7,8 @@ import {
 } from "../normalize.js";
 import type { WebSearchRequest, WebSearchResponse } from "../types.js";
 import type { ProviderSearchContext, SearchSourceProvider } from "./types.js";
+
+const EXA_DEFAULT_BASE_URL = "https://api.exa.ai";
 
 interface ExaResult {
   title?: unknown;
@@ -30,19 +31,31 @@ export class ExaProvider implements SearchSourceProvider {
     const apiKey = context.source.apiKey;
     if (!apiKey) throw new Error("exa api key is not configured");
 
-    const client = new Exa(apiKey);
-    const response = await client.search(request.query, {
-      type: "auto",
-      numResults: context.maxResults,
-      includeDomains: request.includeDomains,
-      excludeDomains: request.excludeDomains,
-      contents:
-        context.searchContextSize === "high"
-          ? { text: true, highlights: true }
-          : { highlights: true },
-    } as never);
+    const response = await fetch(new URL("/search", context.source.baseUrl ?? EXA_DEFAULT_BASE_URL), {
+      method: "POST",
+      signal: context.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        query: request.query,
+        type: "auto",
+        numResults: context.maxResults,
+        includeDomains: request.includeDomains,
+        excludeDomains: request.excludeDomains,
+        contents:
+          context.searchContextSize === "high"
+            ? { text: true, highlights: true }
+            : { highlights: true },
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`exa returned ${response.status}: ${compactWhitespace(await response.text())}`);
+    }
+    const body = (await response.json()) as { results?: ExaResult[] };
 
-    const results = ((response as { results?: ExaResult[] }).results ?? [])
+    const results = (body.results ?? [])
       .map((item) => normalizeExaResult(item))
       .filter((item): item is NonNullable<ReturnType<typeof normalizeExaResult>> => !!item);
 
