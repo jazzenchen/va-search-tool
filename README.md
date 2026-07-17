@@ -68,8 +68,8 @@ Endpoints:
 
 Built-in providers:
 
-- `exa`: Exa official JavaScript SDK (`exa-js`)
-- `tavily`: Tavily official JavaScript SDK (`@tavily/core`)
+- `exa`: Exa Search API
+- `tavily`: Tavily Search API
 - `grok`: xAI Responses API through the official OpenAI-compatible JavaScript SDK (`openai`)
 - `brave`: Brave Search REST API
 
@@ -82,6 +82,7 @@ VA_SEARCH_TAVILY_API_KEY=...
 VA_SEARCH_GROK_API_KEY=...
 VA_SEARCH_BRAVE_API_KEY=...
 VA_SEARCH_MAX_RESULTS=5
+VA_SEARCH_TIMEOUT_MS=25000
 VA_SEARCH_CONTEXT_SIZE=medium
 VA_SEARCH_GROK_MODEL=grok-4.3
 ```
@@ -89,5 +90,7 @@ VA_SEARCH_GROK_MODEL=grok-4.3
 The standard `EXA_API_KEY`, `TAVILY_API_KEY`, `XAI_API_KEY`, `GROK_API_KEY`, `BRAVE_API_KEY`, and `BRAVE_SEARCH_API_KEY` variables are also recognized.
 
 `VA_SEARCH_MAX_RESULTS` is applied per enabled provider and is clamped to `1..20`. `VA_SEARCH_CONTEXT_SIZE` accepts `low`, `medium`, or `high`.
+
+`VA_SEARCH_TIMEOUT_MS` is one deadline shared by every provider in a search. It defaults to 25 seconds and is clamped to 100 milliseconds through 120 seconds. When the deadline expires, pending provider requests are aborted; results that already succeeded are still returned. Stdio accepts up to eight concurrent JSON-RPC requests, so responses can arrive out of request order and must be matched by `id`.
 
 When multiple providers are selected or enabled, the tool searches them in parallel and concatenates successful results in provider order. Results are not deduplicated or reranked.

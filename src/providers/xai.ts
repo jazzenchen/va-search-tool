@@ -29,17 +29,20 @@ export class XaiProvider implements SearchSourceProvider {
     const filters = domainFilters(request);
     if (filters) tool.filters = filters;
 
-    const response = await client.responses.create({
-      model: context.config.grokModel,
-      include: ["no_inline_citations"],
-      input: [
-        {
-          role: "user",
-          content: `Search the web for: ${request.query}\nReturn a concise answer grounded in up to ${context.maxResults} relevant sources.`,
-        },
-      ],
-      tools: [tool],
-    } as never);
+    const response = await client.responses.create(
+      {
+        model: context.config.grokModel,
+        include: ["no_inline_citations"],
+        input: [
+          {
+            role: "user",
+            content: `Search the web for: ${request.query}\nReturn a concise answer grounded in up to ${context.maxResults} relevant sources.`,
+          },
+        ],
+        tools: [tool],
+      } as never,
+      { signal: context.signal },
+    );
 
     return normalizeXaiResponse(request.query, context.maxResults, response);
   }
