@@ -53,7 +53,6 @@ export class SearchProvider {
                   source,
                   config: this.config,
                   maxResults,
-                  timeoutMs: this.config.searchTimeoutMs,
                   signal: deadline.signal,
                   searchContextSize,
                 }),

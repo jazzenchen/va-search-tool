@@ -1,8 +1,8 @@
-import { tavily } from "@tavily/core";
-
-import { resultFromParts, stringField, numberField } from "../normalize.js";
+import { compactWhitespace, resultFromParts, stringField, numberField } from "../normalize.js";
 import type { WebSearchRequest, WebSearchResponse } from "../types.js";
 import type { ProviderSearchContext, SearchSourceProvider } from "./types.js";
+
+const TAVILY_DEFAULT_BASE_URL = "https://api.tavily.com";
 
 interface TavilyResult {
   title?: unknown;
@@ -25,21 +25,32 @@ export class TavilyProvider implements SearchSourceProvider {
     const apiKey = context.source.apiKey;
     if (!apiKey) throw new Error("tavily api key is not configured");
 
-    const client = tavily({ apiKey });
-    const response = await client.search(request.query, {
-      maxResults: context.maxResults,
-      searchDepth:
-        context.searchContextSize === "high" || context.searchContextSize === "medium"
-          ? "advanced"
-          : "basic",
-      includeAnswer: false,
-      includeRawContent: context.searchContextSize === "high",
-      includeDomains: request.includeDomains,
-      excludeDomains: request.excludeDomains,
-      timeout: Math.max(1, Math.ceil(context.timeoutMs / 1_000)),
-    } as never);
+    const response = await fetch(new URL("/search", context.source.baseUrl ?? TAVILY_DEFAULT_BASE_URL), {
+      method: "POST",
+      signal: context.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: request.query,
+        max_results: context.maxResults,
+        search_depth:
+          context.searchContextSize === "high" || context.searchContextSize === "medium"
+            ? "advanced"
+            : "basic",
+        include_answer: false,
+        include_raw_content: context.searchContextSize === "high",
+        include_domains: request.includeDomains,
+        exclude_domains: request.excludeDomains,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`tavily returned ${response.status}: ${compactWhitespace(await response.text())}`);
+    }
+    const body = (await response.json()) as { results?: TavilyResult[] };
 
-    const results = ((response as { results?: TavilyResult[] }).results ?? [])
+    const results = (body.results ?? [])
       .map((item) => normalizeTavilyResult(item))
       .filter((item): item is NonNullable<ReturnType<typeof normalizeTavilyResult>> => !!item);
 

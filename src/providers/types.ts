@@ -5,7 +5,6 @@ export interface ProviderSearchContext {
   source: SourceConfig;
   config: SearchToolConfig;
   maxResults: number;
-  timeoutMs: number;
   signal: AbortSignal;
   searchContextSize?: SearchContextSize;
 }
